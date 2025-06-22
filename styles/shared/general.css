@@ -1,6 +1,17 @@
+:root {
+  --primary-color: #3B82F6;
+  --secondary-color: #EFF6FF;
+  --accent-color: #F97316;
+  --accent-color-dark: #EA580C;
+  --text-color: #1F2937;
+  --light-gray: #D1D5DB;
+  --white: #FFFFFF;
+}
+
 body {
   font-family: Roboto, Arial;
-  color: rgb(33, 33, 33);
+  color: var(--text-color);
+  background-color: var(--secondary-color);
   /* The <body> element has a default margin of 8px
      on all sides. This removes the default margins. */
   margin: 0;
@@ -25,40 +36,42 @@ input, select, button {
 }
 
 .button-primary {
-  color: rgb(33, 33, 33);
-  background-color: orange;
-  border: 1px solid rgb(252, 210, 0);
+  color: var(--white);
+  background-color: var(--accent-color);
+  border: 1px solid var(--accent-color);
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .button-primary:hover {
-  background-color: rgb(247, 202, 0);
-  border: 1px solid rgb(242, 194, 0);
+  background-color: var(--accent-color-dark);
+  border: 1px solid var(--accent-color-dark);
 }
 
 .button-primary:active {
-  background: rgb(255, 216, 20);
-  border-color: rgb(252, 210, 0);
+  background: var(--accent-color-dark);
+  border-color: var(--accent-color);
   box-shadow: none;
 }
 
 .button-secondary {
-  color: rgb(33, 33, 33);
-  background: white;
-  border: 1px solid rgb(213, 217, 217);
+  color: var(--text-color);
+  background: var(--white);
+  border: 1px solid var(--light-gray);
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+  transition: background-color 0.15s;
 }
 
 .button-secondary:hover {
-  background-color: rgb(247, 250, 250);
+  background-color: var(--secondary-color);
 }
 
 .button-secondary:active {
-  background-color: rgb(237, 253, 255);
+  background-color: #dbeafe; /* A slightly darker shade of secondary */
   box-shadow: none;
 }
 
@@ -75,19 +88,20 @@ input, select, button {
 }
 
 .link-primary {
-  color: rgb(1, 124, 182);
+  color: var(--primary-color);
   cursor: pointer;
+  transition: color 0.15s;
 }
 
 .link-primary:hover {
-  color: rgb(196, 80, 0);
+  color: var(--accent-color);
 }
 
 /* Styles for dropdown selectors. */
 select {
-  color: rgb(33, 33, 33);
-  background-color: rgb(240, 240, 240);
-  border: 1px solid rgb(213, 217, 217);
+  color: var(--text-color);
+  background-color: var(--white);
+  border: 1px solid var(--light-gray);
   border-radius: 8px;
   padding: 3px 5px;
   font-size: 15px;
@@ -97,7 +111,7 @@ select {
 
 select:focus,
 input:focus {
-  outline: 2px solid rgb(255, 153, 0);
+  outline: 2px solid var(--accent-color);
 }
 
 .error-message{
@@ -111,4 +125,5 @@ input:focus {
 .user-icon{
   height: 50px;
   cursor: pointer;
+  border-radius: 50%;
 }

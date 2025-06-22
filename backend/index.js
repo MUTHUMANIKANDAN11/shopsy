@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
-const twilio = require('twilio');
 require('dotenv').config();
 
 const app = express();
@@ -13,14 +12,35 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection (Replace with your MongoDB URL)
-const MONGODB_URI = 'mongodb://localhost:27017/shopsy'; // Example URL
+// MongoDB Connection (Local MongoDB)
+const MONGODB_URI = 'mongodb+srv://muthumanikandan11mk:Mk11%402004@mycluster.1gybapu.mongodb.net/?retryWrites=true&w=majority&appName=MyCluster';
+
 mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  maxIdleTimeMS: 30000,
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => {
+  console.log('Connected to MongoDB');
+  // Load initial products after successful connection
+  loadInitialProducts();
+})
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+  console.log('Server will run without database. Some features may be limited.');
+  // Don't exit the process, let it continue without database
+});
+
+// Handle MongoDB connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+});
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -84,8 +104,26 @@ const Product = mongoose.model('Product', productSchema);
 const Order = mongoose.model('Order', orderSchema);
 const Cart = mongoose.model('Cart', cartSchema);
 
-// JWT Secret (Replace with your secret)
-const JWT_SECRET = 'your-secret-key-here';
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+
+// Simple in-memory storage for testing when database is not available
+const inMemoryUsers = new Map();
+const inMemoryCarts = new Map();
+
+// Create a test user for development
+const testUser = {
+  _id: 'test-user-id',
+  name: 'Test User',
+  email: 'test@example.com',
+  phone: '1234567890',
+  address: 'Test Address',
+  isActive: true
+};
+inMemoryUsers.set('test@example.com', {
+  ...testUser,
+  password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK2.' // "password123"
+});
 
 // Authentication Middleware
 const authenticateToken = async (req, res, next) => {
@@ -98,7 +136,16 @@ const authenticateToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    
+    // Try database first, fallback to in-memory
+    let user = null;
+    if (mongoose.connection.readyState === 1) {
+      user = await User.findById(decoded.userId);
+    } else {
+      // Fallback to in-memory user for testing
+      user = testUser;
+    }
+    
     if (!user || !user.isActive) {
       return res.status(401).json({ error: 'Invalid token' });
     }
@@ -109,20 +156,43 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+// Database connection check middleware
+const checkDatabaseConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ 
+      error: 'Database connection not available',
+      message: 'Please try again later'
+    });
+  }
+  next();
+};
+
 // Load initial products from JSON file
 const loadInitialProducts = async () => {
   try {
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, skipping initial products load');
+      return;
+    }
+
     const fs = require('fs');
     const productsData = JSON.parse(fs.readFileSync('./products.json', 'utf8'));
     
+    let loadedCount = 0;
     for (const productData of productsData) {
-      await Product.findOneAndUpdate(
-        { id: productData.id },
-        productData,
-        { upsert: true, new: true }
-      );
+      try {
+        await Product.findOneAndUpdate(
+          { id: productData.id },
+          productData,
+          { upsert: true, new: true }
+        );
+        loadedCount++;
+      } catch (productError) {
+        console.error(`Error loading product ${productData.id}:`, productError);
+      }
     }
-    console.log('Initial products loaded successfully');
+    console.log(`Initial products loaded successfully: ${loadedCount}/${productsData.length} products`);
   } catch (error) {
     console.error('Error loading initial products:', error);
   }
@@ -189,15 +259,25 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user || !user.isActive) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    let user = null;
+    let isValidPassword = false;
+
+    // Try database first, fallback to in-memory
+    if (mongoose.connection.readyState === 1) {
+      user = await User.findOne({ email });
+      if (user && user.isActive) {
+        isValidPassword = await bcrypt.compare(password, user.password);
+      }
+    } else {
+      // Fallback to in-memory user for testing
+      const inMemoryUser = inMemoryUsers.get(email);
+      if (inMemoryUser && inMemoryUser.isActive) {
+        user = inMemoryUser;
+        isValidPassword = await bcrypt.compare(password, inMemoryUser.password);
+      }
     }
 
-    // Check password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
+    if (!user || !user.isActive || !isValidPassword) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -221,7 +301,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 3. Get User Profile
-app.get('/api/user/profile', authenticateToken, async (req, res) => {
+app.get('/api/user/profile', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
     res.json(user);
@@ -232,7 +312,7 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
 });
 
 // 4. Update User Profile
-app.put('/api/user/profile', authenticateToken, async (req, res) => {
+app.put('/api/user/profile', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const { name, phone, address } = req.body;
     const updates = {};
@@ -258,7 +338,7 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
 });
 
 // 5. Get All Products
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', checkDatabaseConnection, async (req, res) => {
   try {
     const { search, category, minPrice, maxPrice, sort } = req.query;
     let query = {};
@@ -299,7 +379,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // 6. Get Single Product
-app.get('/api/products/:id', async (req, res) => {
+app.get('/api/products/:id', checkDatabaseConnection, async (req, res) => {
   try {
     const product = await Product.findOne({ id: req.params.id });
     if (!product) {
@@ -315,11 +395,22 @@ app.get('/api/products/:id', async (req, res) => {
 // 7. Cart Operations
 app.get('/api/cart', authenticateToken, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ userId: req.user._id });
-    if (!cart) {
-      cart = new Cart({ userId: req.user._id, products: [] });
-      await cart.save();
+    let cart = null;
+    
+    if (mongoose.connection.readyState === 1) {
+      // Use database
+      cart = await Cart.findOne({ userId: req.user._id });
+      if (!cart) {
+        cart = new Cart({ userId: req.user._id, products: [] });
+        await cart.save();
+      }
+    } else {
+      // Use in-memory storage
+      const cartKey = req.user._id;
+      cart = inMemoryCarts.get(cartKey) || { userId: cartKey, products: [], updatedAt: new Date() };
+      inMemoryCarts.set(cartKey, cart);
     }
+    
     res.json(cart);
   } catch (error) {
     console.error('Get cart error:', error);
@@ -327,7 +418,7 @@ app.get('/api/cart', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/cart/add', authenticateToken, async (req, res) => {
+app.post('/api/cart/add', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
@@ -364,7 +455,7 @@ app.post('/api/cart/add', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/cart/update', authenticateToken, async (req, res) => {
+app.put('/api/cart/update', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
@@ -399,7 +490,7 @@ app.put('/api/cart/update', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/cart/clear', authenticateToken, async (req, res) => {
+app.delete('/api/cart/clear', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     await Cart.findOneAndUpdate(
       { userId: req.user._id },
@@ -412,7 +503,8 @@ app.delete('/api/cart/clear', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/cart/delivery-option', authenticateToken, async (req, res) => {
+// Update delivery option for a cart item
+app.put('/api/cart/delivery-option', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const { productId, deliveryOptionId } = req.body;
     if (!productId || !deliveryOptionId) {
@@ -437,16 +529,13 @@ app.put('/api/cart/delivery-option', authenticateToken, async (req, res) => {
 });
 
 // 8. Order Operations
-app.post('/api/orders', authenticateToken, async (req, res) => {
+app.post('/api/orders', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const { cart, deliveryAddress } = req.body;
 
     if (!cart || !deliveryAddress) {
       return res.status(400).json({ error: 'Cart and delivery address are required' });
     }
-
-    // Calculate delivery time
-    let deliveryDays = 7; // Default
 
     const products = [];
     let totalCents = 0;
@@ -465,7 +554,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         productId: item.productId,
         quantity: item.quantity,
         priceCents: product.priceCents,
-        estimatedDeliveryTime: new Date(Date.now() + deliveryDays * 24 * 60 * 60 * 1000)
+        estimatedDeliveryTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       });
     }
 
@@ -487,30 +576,6 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       { products: [], updatedAt: new Date() }
     );
 
-    // --- Send SMS Notification ---
-    try {
-        const user = await User.findById(req.user._id);
-        const userPhoneNumber = user.phone;
-        const message = `Thank you for your order, ${user.name}! Your order #${order.orderId} has been placed successfully.`;
-
-        // Check if Twilio credentials are set
-        if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-            const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-            await twilioClient.messages.create({
-                body: message,
-                from: process.env.TWILIO_PHONE_NUMBER,
-                to: `+${userPhoneNumber}` // Ensure phone number includes country code
-            });
-            console.log(`SMS notification sent to ${userPhoneNumber}`);
-        } else {
-            console.log('Twilio credentials not set. Skipping SMS. Message:', message);
-        }
-    } catch (smsError) {
-        console.error('Error sending SMS notification:', smsError);
-        // Do not fail the order if SMS fails
-    }
-    // --- End SMS Notification ---
-
     res.status(201).json({
       message: 'Order placed successfully',
       order
@@ -521,7 +586,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/orders', authenticateToken, async (req, res) => {
+app.get('/api/orders', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.user._id })
       .sort({ orderTime: -1 });
@@ -532,7 +597,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
+app.get('/api/orders/:orderId', authenticateToken, checkDatabaseConnection, async (req, res) => {
   try {
     const order = await Order.findOne({
       orderId: req.params.orderId,
@@ -550,8 +615,28 @@ app.get('/api/orders/:orderId', authenticateToken, async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  const health = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: {
+      connected: mongoose.connection.readyState === 1,
+      state: mongoose.connection.readyState,
+      host: mongoose.connection.host || 'Not connected',
+      name: mongoose.connection.name || 'Not connected'
+    },
+    environment: process.env.NODE_ENV || 'development',
+    version: process.version
+  };
+  
+  const statusCode = health.database.connected ? 200 : 503;
+  res.status(statusCode).json(health);
+});
+
 // Legacy routes for backward compatibility
-app.get('/products', async (req, res) => {
+app.get('/products', checkDatabaseConnection, async (req, res) => {
   try {
     const products = await Product.find();
     res.json(products);
@@ -561,7 +646,7 @@ app.get('/products', async (req, res) => {
   }
 });
 
-app.post('/orders', async (req, res) => {
+app.post('/orders', checkDatabaseConnection, async (req, res) => {
   try {
     const { cart } = req.body;
     const products = [];
@@ -595,7 +680,6 @@ app.post('/orders', async (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  await loadInitialProducts();
 });

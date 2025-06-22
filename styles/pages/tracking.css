@@ -2,13 +2,10 @@
   max-width: 850px;
   margin-top: 90px;
   margin-bottom: 100px;
-  padding-left: 30px;
-  padding-right: 30px;
-
-  /* margin-left: auto;
-     margin-right auto;
-     Is a trick for centering an element horizontally
-     without needing a container. */
+  padding: 20px;
+  background-color: var(--white);
+  border-radius: 8px;
+  border: 1px solid var(--light-gray);
   margin-left: auto;
   margin-right: auto;
 }
@@ -16,6 +13,7 @@
 .back-to-orders-link {
   display: inline-block;
   margin-bottom: 30px;
+  font-weight: 500;
 }
 
 .delivery-date {
@@ -44,7 +42,7 @@
 }
 
 .current-status {
-  color: rgb(6, 125, 98);
+  color: var(--primary-color);
 }
 
 @media (max-width: 575px) {
@@ -75,7 +73,8 @@
 
 .progress-bar {
   height: 100%;
-  background-color: green;
+  background-color: var(--primary-color);
   border-radius: 50px;
   width: 50%;
+  transition: width 0.5s ease-in-out;
 }

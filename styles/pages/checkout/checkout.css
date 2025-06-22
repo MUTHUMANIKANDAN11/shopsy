@@ -44,9 +44,10 @@
 
 .cart-item-container,
 .payment-summary {
-  border: 1px solid rgb(222, 222, 222);
+  border: 1px solid var(--light-gray);
   border-radius: 4px;
   padding: 18px;
+  background-color: var(--white);
 }
 
 .cart-item-container {
@@ -69,11 +70,11 @@
 }
 
 .delivery-date {
-  color: rgb(0, 118, 0);
+  color: var(--primary-color);
   font-weight: 700;
   font-size: 19px;
   margin-top: 5px;
-  margin-bottom: 22px;
+  margin-bottom: 8px;
 }
 
 .cart-item-details-grid {
@@ -110,13 +111,14 @@
 }
 
 .product-price {
-  color: rgb(177, 39, 4);
+  color: var(--accent-color);
   font-weight: 700;
   margin-bottom: 5px;
 }
 
 .product-quantity .link-primary {
   margin-left: 3px;
+  cursor: pointer;
 }
 
 @media (max-width: 1000px) {
@@ -152,20 +154,20 @@
 }
 
 .delivery-option-date {
-  color: rgb(0, 118, 0);
+  color: var(--primary-color);
   font-weight: 500;
   margin-bottom: 3px;
 }
 
 .delivery-option-price {
-  color: rgb(120, 120, 120);
+  color: var(--text-color);
   font-size: 15px;
 }
 
 .payment-summary-title {
   font-weight: 700;
   font-size: 18px;
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 .payment-summary-row {
@@ -184,7 +186,7 @@
 }
 
 .subtotal-row .payment-summary-money {
-  border-top: 1px solid rgb(222, 222, 222);
+  border-top: 1px solid var(--light-gray);
 }
 
 .subtotal-row div {
@@ -192,11 +194,11 @@
 }
 
 .total-row {
-  color: rgb(177, 39, 4);
+  color: var(--accent-color);
   font-weight: 700;
   font-size: 18px;
 
-  border-top: 1px solid rgb(222, 222, 222);
+  border-top: 1px solid var(--light-gray);
   padding-top: 18px;
 }
 
