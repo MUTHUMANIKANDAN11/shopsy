@@ -59,7 +59,7 @@ import { moneyFormat } from "../others/money-format.js";
   }
 
   export function loadProductFromBackend(){
-    const fet = fetch("http://localhost:3000/api/products").then((response) => {
+    const fet = fetch("https://shopsy-project.onrender.com/api/products").then((response) => {
       return response.json();
     });
     

@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://shopsy-project.onrender.com/api';
 
 // Authentication utilities
 export function getAuthToken() {
@@ -177,12 +177,12 @@ export async function register(userData) {
 
 // Legacy API calls for backward compatibility
 export async function getLegacyProducts() {
-  const response = await fetch('http://localhost:3000/products');
+  const response = await fetch('https://shopsy-project.onrender.com/products');
   return response.json();
 }
 
 export async function createLegacyOrder(cart) {
-  const response = await fetch('http://localhost:3000/orders', {
+  const response = await fetch('https://shopsy-project.onrender.com/orders', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
