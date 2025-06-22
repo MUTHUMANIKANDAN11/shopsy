@@ -42,67 +42,10 @@ mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
 
-// User Schema
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  phone: { type: String, required: true },
-  address: { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now },
-  isActive: { type: Boolean, default: true }
-});
-
-// Product Schema
-const productSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  priceCents: { type: Number, required: true },
-  keywords: [String],
-  image: { type: String, required: true },
-  rating: {
-    stars: { type: Number, default: 0 },
-    count: { type: Number, default: 0 }
-  },
-  prime: { type: Boolean, default: false },
-  inStock: { type: Boolean, default: true },
-  category: { type: String, default: 'General' }
-});
-
-// Order Schema
-const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  orderId: { type: String, required: true, unique: true },
-  products: [{
-    productId: { type: String, required: true },
-    quantity: { type: Number, required: true },
-    priceCents: { type: Number, required: true },
-    estimatedDeliveryTime: { type: Date, required: true }
-  }],
-  totalCostCents: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'], default: 'pending' },
-  deliveryAddress: { type: String, required: true },
-  paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
-  orderTime: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Cart Schema
-const cartSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  products: [{
-    productId: { type: String, required: true },
-    quantity: { type: Number, required: true, min: 1 },
-    deliveryOptionId: { type: String, default: '1' }
-  }],
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Models
-const User = mongoose.model('User', userSchema);
-const Product = mongoose.model('Product', productSchema);
-const Order = mongoose.model('Order', orderSchema);
-const Cart = mongoose.model('Cart', cartSchema);
+const User = require('./models/User');
+const Product = require('./models/Product');
+const Order = require('./models/Orders');
+const Cart = require('./models/Cart');
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
