@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection (Local MongoDB)
-const MONGODB_URI = 'mongodb+srv://muthumanikandan11mk:Mk11%402004@mycluster.1gybapu.mongodb.net/?retryWrites=true&w=majority&appName=MyCluster';
+const MONGODB_URI = 'mongodb+srv://muthumanikandan11mk:Mk11%402004@mycluster.1gybapu.mongodb.net/?retryWrites=true&w=majority&appName=MyCluster/shopsy';
 
 mongoose.connect(MONGODB_URI, {
   serverSelectionTimeoutMS: 5000,
